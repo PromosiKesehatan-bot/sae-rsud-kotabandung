@@ -9,29 +9,40 @@ import time
 
 st.set_page_config(page_title="SAE RSUD Kota Bandung", page_icon="🩺", layout="centered")
 
-# Kustomisasi Desain Background & Tampilan Elegan
+# Kustomisasi Desain: Mengunci warna teks agar SELALU kontras dan terbaca jelas di perangkat apa pun
 custom_css = """
 <style>
 /* Background gradien elegan */
 .stApp {
     background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #0f2c42 100%);
-    color: #e0e6ed;
+    color: #f1f5f9 !important;
 }
 
 /* Header & sidebar */
 header {visibility: hidden;}
 section[data-testid="stSidebar"] {
-    background-color: rgba(13, 27, 42, 0.85);
+    background-color: rgba(13, 27, 42, 0.95);
+    color: #ffffff !important;
 }
 
-/* Kotak obrolan dengan efek glassmorphism */
+/* Kotak obrolan terkunci dengan teks kontras tinggi */
 div[data-testid="stChatMessage"] {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.75) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
     border-radius: 14px;
-    padding: 12px;
-    margin-bottom: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    padding: 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* KUNCI TEKS: Memaksa teks chat terbaca putih cerah dan tidak pudar */
+div[data-testid="stChatMessage"] p, 
+div[data-testid="stChatMessage"] div,
+div[data-testid="stChatMessage"] span,
+div[data-testid="stChatMessage"] li {
+    color: #f8fafc !important;
+    font-size: 15px;
+    line-height: 1.6;
 }
 
 /* Input chat di bagian bawah */
@@ -71,8 +82,8 @@ def load_context_data():
             except Exception:
                 continue
             
-    gabungan = f"DATA RESMI JADWAL POLIKLINIK RSUD KOTA BANDUNG:\n{txt_data}\n\nMATERI EDUKASI KESEHATAN:\n{pdf_data}"
-    return gabungan[:120000] if txt_data or pdf_data else "Materi promosi kesehatan dan informasi poliklinik."
+    gabungan = f"DATA RESMI JADWAL POLIKLINIK & TARIF RSUD KOTA BANDUNG:\n{txt_data}\n\nMATERI EDUKASI KESEHATAN:\n{pdf_data}"
+    return gabungan[:120000] if (txt_data or pdf_data) else "Materi promosi kesehatan dan informasi poliklinik."
 
 context_data = load_context_data()
 
@@ -84,7 +95,7 @@ st.caption("Suara, Aksara Edukasi — Asisten Edukasi & Informasi Kesehatan Masy
 
 def teks_ke_suara(teks):
     teks_bersih = teks.replace("*", "").replace("#", "").replace("-", " ")
-    teks_audio = teks_bersih[:350]
+    teks_audio = teks_bersih[:300]
     tts = gTTS(text=teks_audio, lang="id")
     fp = io.BytesIO()
     tts.write_to_fp(fp)
@@ -103,7 +114,7 @@ if "messages" not in st.session_state:
 # Tampilkan riwayat percakapan
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
-        st.write(msg["content"])
+        st.markdown(msg["content"])
         if msg.get("audio"):
             st.audio(msg["audio"], format="audio/mp3")
 
@@ -113,7 +124,7 @@ voice_component = """
     <button id="micBtn" style="background:#dc2626; color:white; border:none; border-radius:50px; padding:10px 18px; font-size:14px; cursor:pointer; font-weight:bold; display:flex; align-items:center; gap:6px; box-shadow: 0 4px 10px rgba(220,38,38,0.4);">
         🎤 Bicara Sekarang
     </button>
-    <span id="micStatus" style="color:#aaa; font-size:13px;">Ketuk tombol untuk bicara</span>
+    <span id="micStatus" style="color:#cbd5e1; font-size:13px;">Ketuk tombol untuk bicara</span>
 </div>
 
 <script>
@@ -180,46 +191,53 @@ prompt = st.chat_input("Atau ketik pertanyaan kesehatan/poliklinik di sini...")
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt, "audio": None})
     with st.chat_message("user"):
-        st.write(prompt)
+        st.markdown(prompt)
 
     system_instruction = f"""
 Anda adalah 'SAE' (Suara, Aksara Edukasi), asisten AI resmi RSUD Kota Bandung.
 
-Berikut DATABASE RESMI JADWAL & MATERI KESEHATAN RSUD KOTA BANDUNG:
+Berikut DATABASE RESMI JADWAL, TARIF, & MATERI KESEHATAN RSUD KOTA BANDUNG:
 ---
 {context_data}
 ---
 
 ATURAN MENJAWAB:
 1. Pahami sinonim kata (contoh: syaraf = saraf = neurologi, obgyn = kandungan, anak = pediatri, jiwa = psikiatri, poli dalam = penyakit dalam).
-2. Jika pengguna menanyakan jadwal poli atau dokter, carilah di database di atas. Sebutkan nama klinik, dokter, hari, dan jam praktiknya secara padat dan to the point.
-3. Hindari pembukaan basa-basi yang panjang agar jawaban cepat dibaca dan diubah ke audio.
+2. Jika pengguna menanyakan jadwal poli, dokter, atau tarif, carilah di database di atas. Berikan jawaban yang padat, akurat, dan to the point.
+3. Hindari pengantar yang terlalu panjang agar cepat dibaca pengguna dan diubah ke audio.
 """
 
     with st.chat_message("assistant"):
-        with st.spinner("SAE sedang memproses tanggapan..."):
-            jawaban = None
-            for attempt in range(3):
+        message_placeholder = st.empty()
+        full_response = ""
+        
+        # Respon streaming langsung agar teks segera muncul kata per kata
+        try:
+            response_stream = client.models.generate_content_stream(
+                model="gemini-2.5-flash",
+                contents=f"{system_instruction}\n\nPertanyaan: {prompt}"
+            )
+            for chunk in response_stream:
+                if chunk.text:
+                    full_response += chunk.text
+                    message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+        except Exception as e:
+            full_response = "Mohon maaf, saat ini sistem sedang memproses antrean. Silakan coba kembali."
+            message_placeholder.markdown(full_response)
+            st.error(f"Keterangan error: {e}")
+
+        # Pembuatan audio setelah teks selesai ditampilkan
+        if full_response and full_response != "Mohon maaf, saat ini sistem sedang memproses antrean. Silakan coba kembali.":
+            with st.spinner("Memproses audio jawaban..."):
                 try:
-                    response = client.models.generate_content(
-                        model="gemini-3.8-flash",
-                        contents=f"{system_instruction}\n\nPertanyaan: {prompt}"
-                    )
-                    jawaban = response.text
-                    break
-                except Exception as e:
-                    if attempt < 2:
-                        time.sleep(2)
-                    else:
-                        st.error(f"Terjadi kendala saat memproses: {e}")
+                    audio_stream = teks_ke_suara(full_response)
+                    st.audio(audio_stream, format="audio/mp3", autoplay=True)
+                except Exception:
+                    audio_stream = None
 
-            if jawaban:
-                st.write(jawaban)
-                audio_stream = teks_ke_suara(jawaban)
-                st.audio(audio_stream, format="audio/mp3", autoplay=True)
-
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": jawaban,
-                    "audio": audio_stream
-                })
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": full_response,
+                "audio": audio_stream
+            })
