@@ -227,19 +227,21 @@ ATURAN MENJAWAB:
   with st.chat_message("assistant"):
     with st.spinner("SAE sedang memproses tanggapan..."):
       jawaban = None
-      for attempt in range(3):
-        try:
-          response = client.models.generate_content(
-              model="gemini-3.8-flash",
-              contents=f"{system_instruction}\n\nPertanyaan: {prompt}",
-          )
-          jawaban = response.text
+      daftar_model = ["gemini-3.8-flash", "gemini-2.0-flash"]
+
+      for nama_model in daftar_model:
+        for attempt in range(2):
+          try:
+            response = client.models.generate_content(
+                model=nama_model,
+                contents=f"{system_instruction}\n\nPertanyaan: {prompt}",
+            )
+            jawaban = response.text
+            break
+          except Exception:
+            time.sleep(1.5)
+        if jawaban:
           break
-        except Exception as e:
-          if attempt < 2:
-            time.sleep(2)
-          else:
-            st.error(f"Terjadi kendala saat memproses: {e}")
 
       if jawaban:
         st.write(jawaban)
@@ -251,3 +253,8 @@ ATURAN MENJAWAB:
             "content": jawaban,
             "audio": audio_stream,
         })
+      else:
+        st.warning(
+            "Server AI sedang menerima antrean padat. Silakan kirim ulang"
+            " pertanyaan Anda dalam beberapa detik ya."
+        )
