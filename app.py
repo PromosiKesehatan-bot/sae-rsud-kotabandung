@@ -11,13 +11,13 @@ st.set_page_config(
     page_title="SAE RSUD Kota Bandung", page_icon="🩺", layout="centered"
 )
 
-# Kustomisasi Desain: Mengunci warna teks agar SELALU kontras dan terbaca jelas di perangkat apa pun
+# Kustomisasi Desain: Mengunci teks agar SELALU terbaca jelas di perangkat apa pun
 custom_css = """
 <style>
-/* Background gradien */
+/* Background gradien elegan */
 .stApp {
     background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #0f2c42 100%);
-    color: #f1f5f9 !important;
+    color: #e0e6ed !important;
 }
 
 /* Header & sidebar */
@@ -27,17 +27,17 @@ section[data-testid="stSidebar"] {
     color: #ffffff !important;
 }
 
-/* Kotak obrolan dengan latar belakang gelap tegas */
+/* Kotak obrolan dengan latar gelap tegas */
 div[data-testid="stChatMessage"] {
     background: rgba(15, 23, 42, 0.85) !important;
     border: 1px solid rgba(255, 255, 255, 0.15) !important;
     border-radius: 14px;
-    padding: 14px;
-    margin-bottom: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
-/* KUNCI TEKS: Memaksa semua teks di bubble chat terbaca putih cerah di perangkat apa pun */
+/* Kunci warna teks obrolan agar selalu putih terang */
 div[data-testid="stChatMessage"] p, 
 div[data-testid="stChatMessage"] div,
 div[data-testid="stChatMessage"] span,
@@ -72,198 +72,6 @@ def load_context_data():
       except Exception:
         continue
 
-  # 2. Baca berkas PDF (jadwal, materi, tarif)
+  # 2. Baca berkas PDF
   for f in os.listdir("."):
-    if f.endswith(".pdf"):
-      try:
-        with open(f, "rb") as file:
-          reader = PyPDF2.PdfReader(file)
-          for page in reader.pages[:25]:
-            extracted = page.extract_text()
-            if extracted:
-              pdf_data += extracted + "\n"
-      except Exception:
-        continue
-
-  gabungan = f"DATA RESMI JADWAL POLIKLINIK & TARIF RSUD KOTA BANDUNG:\n{txt_data}\n\nMATERI EDUKASI KESEHATAN:\n{pdf_data}"
-  return (
-      gabungan[:120000]
-      if (txt_data or pdf_data)
-      else "Materi promosi kesehatan, tarif, dan informasi poliklinik."
-  )
-
-
-context_data = load_context_data()
-
-st.sidebar.title("Informasi Sistem")
-st.sidebar.info(f"Total Karakter Terbaca: {len(context_data)}")
-
-st.title("🩺 SAE RSUD Kota Bandung")
-st.caption(
-    "Suara, Aksara Edukasi — Asisten Edukasi & Informasi Kesehatan Masyarakat"
-    " berbasis AI"
-)
-
-
-def teks_ke_suara(teks):
-  teks_bersih = teks.replace("*", "").replace("#", "").replace("-", " ")
-  teks_audio = teks_bersih[:300]
-  tts = gTTS(text=teks_audio, lang="id")
-  fp = io.BytesIO()
-  tts.write_to_fp(fp)
-  fp.seek(0)
-  return fp
-
-
-if "messages" not in st.session_state:
-  st.session_state.messages = [{
-      "role": "assistant",
-      "content": (
-          "Halo! Sampurasun! Saya SAE (Suara, Aksara Edukasi), asisten virtual"
-          " resmi Promosi Kesehatan RSUD Kota Bandung. Ada yang ingin Anda"
-          " tanyakan seputar materi kesehatan, jadwal poliklinik, atau tarif"
-          " pelayanan?"
-      ),
-      "audio": None,
-  }]
-
-# Tampilkan riwayat percakapan
-for msg in st.session_state.messages:
-  with st.chat_message(msg["role"]):
-    st.markdown(msg["content"])
-    if msg.get("audio"):
-      st.audio(msg["audio"], format="audio/mp3")
-
-# Tombol Suara Web Speech API
-voice_component = """
-<div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
-    <button id="micBtn" style="background:#dc2626; color:white; border:none; border-radius:50px; padding:10px 18px; font-size:14px; cursor:pointer; font-weight:bold; display:flex; align-items:center; gap:6px; box-shadow: 0 4px 10px rgba(220,38,38,0.4);">
-        🎤 Bicara Sekarang
-    </button>
-    <span id="micStatus" style="color:#cbd5e1; font-size:13px;">Ketuk tombol untuk bicara</span>
-</div>
-
-<script>
-const btn = document.getElementById('micBtn');
-const status = document.getElementById('micStatus');
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-if (SpeechRecognition) {
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'id-ID';
-    recognition.interimResults = false;
-
-    btn.onclick = () => {
-        try {
-            recognition.start();
-            status.innerText = "Mendengarkan...";
-            btn.style.background = "#16a34a";
-        } catch (e) {
-            recognition.stop();
-        }
-    };
-
-    recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        status.innerText = "Terkirim: " + transcript;
-        btn.style.background = "#dc2626";
-        
-        const doc = window.parent.document;
-        const textarea = doc.querySelector('textarea[data-testid="stChatInputTextArea"]');
-        if (textarea) {
-            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.parent.HTMLTextAreaElement.prototype, "value").set;
-            nativeInputValueSetter.call(textarea, transcript);
-            textarea.dispatchEvent(new Event('input', { bubbles: true }));
-
-            setTimeout(() => {
-                const sendBtn = doc.querySelector('button[data-testid="stChatInputSubmitButton"]');
-                if (sendBtn) {
-                    sendBtn.disabled = false;
-                    sendBtn.click();
-                } else {
-                    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
-                }
-            }, 300);
-        }
-    };
-
-    recognition.onerror = () => {
-        status.innerText = "Gagal merekam suara.";
-        btn.style.background = "#dc2626";
-    };
-
-    recognition.onend = () => {
-        btn.style.background = "#dc2626";
-    };
-} else {
-    status.innerText = "Gunakan peramban Chrome untuk fitur suara langsung.";
-}
-</script>
-"""
-components.html(voice_component, height=55)
-
-prompt = st.chat_input("Atau ketik pertanyaan kesehatan/poliklinik di sini...")
-
-if prompt:
-  st.session_state.messages.append(
-      {"role": "user", "content": prompt, "audio": None}
-  )
-  with st.chat_message("user"):
-    st.markdown(prompt)
-
-  system_instruction = f"""
-Anda adalah 'SAE' (Suara, Aksara Edukasi), asisten AI resmi RSUD Kota Bandung.
-
-Berikut DATABASE RESMI JADWAL, TARIF, & MATERI KESEHATAN RSUD KOTA BANDUNG:
----
-{context_data}
----
-
-ATURAN MENJAWAB:
-1. Pahami sinonim kata (contoh: syaraf = saraf = neurologi, obgyn = kandungan, anak = pediatri, jiwa = psikiatri, poli dalam = penyakit dalam).
-2. Jika pengguna menanyakan jadwal poli, dokter, atau tarif, carilah di database di atas. Berikan jawaban yang padat, akurat, dan to the point.
-3. Hindari pengantar yang terlalu panjang agar cepat dibaca pengguna dan diubah ke audio.
-"""
-
-  with st.chat_message("assistant"):
-    message_placeholder = st.empty()
-    full_response = ""
-
-    # Streaming teks bertahap menggunakan gemini-3.8-flash
-    try:
-      response_stream = client.models.generate_content_stream(
-          model="gemini-3.8-flash",
-          contents=f"{system_instruction}\n\nPertanyaan: {prompt}",
-      )
-      for chunk in response_stream:
-        if chunk.text:
-          full_response += chunk.text
-          message_placeholder.markdown(full_response + "▌")
-      message_placeholder.markdown(full_response)
-    except Exception as e:
-      full_response = (
-          "Mohon maaf, saat ini sistem sedang memproses antrean. Silakan coba"
-          " kembali."
-      )
-      message_placeholder.markdown(full_response)
-      st.error(f"Keterangan error: {e}")
-
-    # Pembuatan audio setelah teks selesai ditampilkan
-    if (
-        full_response
-        and full_response
-        != "Mohon maaf, saat ini sistem sedang memproses antrean. Silakan coba"
-        " kembali."
-    ):
-      with st.spinner("Memproses audio jawaban..."):
-        try:
-          audio_stream = teks_ke_suara(full_response)
-          st.audio(audio_stream, format="audio/mp3", autoplay=True)
-        except Exception:
-          audio_stream = None
-
-      st.session_state.messages.append({
-          "role": "assistant",
-          "content": full_response,
-          "audio": audio_stream,
-      })
+    if f.
