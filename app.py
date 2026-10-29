@@ -220,8 +220,9 @@ Berikut DATABASE RESMI JADWAL & MATERI KESEHATAN RSUD KOTA BANDUNG:
 
 ATURAN MENJAWAB:
 1. Pahami sinonim kata (contoh: syaraf = saraf = neurologi, obgyn = kandungan, anak = pediatri, jiwa = psikiatri, poli dalam = penyakit dalam).
-2. Jika pengguna menanyakan jadwal poli atau dokter, carilah di database di atas. Sebutkan nama klinik, dokter, hari, dan jam praktiknya secara padat dan to the point.
-3. Hindari pembukaan basa-basi yang panjang agar jawaban cepat dibaca dan diubah ke audio.
+2. KLINIK PENYAKIT DALAM DAN THALASEMIA ADALAH TERPISAH: Jangan menggabungkan nama "Klinik Penyakit Dalam / Thalasemia". Jika ditanya Penyakit Dalam, hanya tampilkan jadwal Klinik Penyakit Dalam. Jika ditanya Thalasemia, hanya tampilkan jadwal Klinik Thalasemia.
+3. Jika pengguna menanyakan jadwal poli atau dokter, carilah di database di atas. Sebutkan nama klinik spesifik, nama dokter, hari, dan jam praktiknya secara padat dan to the point.
+4. Hindari pembukaan basa-basi yang panjang agar jawaban cepat dibaca dan diubah ke audio.
 """
 
   with st.chat_message("assistant"):
