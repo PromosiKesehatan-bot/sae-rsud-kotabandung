@@ -214,7 +214,7 @@ ATURAN MENJAWAB:
         # Respon streaming langsung agar teks segera muncul kata per kata
         try:
             response_stream = client.models.generate_content_stream(
-                model="gemini-2.5-flash",
+                model="gemini-3.8-flash",
                 contents=f"{system_instruction}\n\nPertanyaan: {prompt}"
             )
             for chunk in response_stream:
