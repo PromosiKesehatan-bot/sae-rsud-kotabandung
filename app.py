@@ -1,18 +1,20 @@
-import streamlit as st
-import streamlit.components.v1 as components
+import io
+import os
+import time
 from google import genai
 from gtts import gTTS
 import PyPDF2
-import os
-import io
-import time
+import streamlit as st
+import streamlit.components.v1 as components
 
-st.set_page_config(page_title="SAE RSUD Kota Bandung", page_icon="🩺", layout="centered")
+st.set_page_config(
+    page_title="SAE RSUD Kota Bandung", page_icon="🩺", layout="centered"
+)
 
 # Kustomisasi Desain: Mengunci warna teks agar SELALU kontras dan terbaca jelas di perangkat apa pun
 custom_css = """
 <style>
-/* Background gradien elegan */
+/* Background gradien */
 .stApp {
     background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #0f2c42 100%);
     color: #f1f5f9 !important;
@@ -25,9 +27,9 @@ section[data-testid="stSidebar"] {
     color: #ffffff !important;
 }
 
-/* Kotak obrolan terkunci dengan teks kontras tinggi */
+/* Kotak obrolan dengan latar belakang gelap tegas */
 div[data-testid="stChatMessage"] {
-    background: rgba(15, 23, 42, 0.75) !important;
+    background: rgba(15, 23, 42, 0.85) !important;
     border: 1px solid rgba(255, 255, 255, 0.15) !important;
     border-radius: 14px;
     padding: 14px;
@@ -35,7 +37,7 @@ div[data-testid="stChatMessage"] {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
-/* KUNCI TEKS: Memaksa teks chat terbaca putih cerah dan tidak pudar */
+/* KUNCI TEKS: Memaksa semua teks di bubble chat terbaca putih cerah di perangkat apa pun */
 div[data-testid="stChatMessage"] p, 
 div[data-testid="stChatMessage"] div,
 div[data-testid="stChatMessage"] span,
@@ -55,35 +57,41 @@ st.markdown(custom_css, unsafe_allow_html=True)
 
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
+
 @st.cache_resource
 def load_context_data():
-    txt_data = ""
-    pdf_data = ""
-    
-    # 1. Baca berkas TXT
-    for f in os.listdir("."):
-        if f.endswith(".txt") and f != "requirements.txt":
-            try:
-                with open(f, "r", encoding="utf-8") as file:
-                    txt_data += file.read() + "\n\n"
-            except Exception:
-                continue
+  txt_data = ""
+  pdf_data = ""
 
-    # 2. Baca berkas PDF
-    for f in os.listdir("."):
-        if f.endswith(".pdf"):
-            try:
-                with open(f, "rb") as file:
-                    reader = PyPDF2.PdfReader(file)
-                    for page in reader.pages[:20]:
-                        extracted = page.extract_text()
-                        if extracted:
-                            pdf_data += extracted + "\n"
-            except Exception:
-                continue
-            
-    gabungan = f"DATA RESMI JADWAL POLIKLINIK & TARIF RSUD KOTA BANDUNG:\n{txt_data}\n\nMATERI EDUKASI KESEHATAN:\n{pdf_data}"
-    return gabungan[:120000] if (txt_data or pdf_data) else "Materi promosi kesehatan dan informasi poliklinik."
+  # 1. Baca berkas TXT
+  for f in os.listdir("."):
+    if f.endswith(".txt") and f != "requirements.txt":
+      try:
+        with open(f, "r", encoding="utf-8") as file:
+          txt_data += file.read() + "\n\n"
+      except Exception:
+        continue
+
+  # 2. Baca berkas PDF (jadwal, materi, tarif)
+  for f in os.listdir("."):
+    if f.endswith(".pdf"):
+      try:
+        with open(f, "rb") as file:
+          reader = PyPDF2.PdfReader(file)
+          for page in reader.pages[:25]:
+            extracted = page.extract_text()
+            if extracted:
+              pdf_data += extracted + "\n"
+      except Exception:
+        continue
+
+  gabungan = f"DATA RESMI JADWAL POLIKLINIK & TARIF RSUD KOTA BANDUNG:\n{txt_data}\n\nMATERI EDUKASI KESEHATAN:\n{pdf_data}"
+  return (
+      gabungan[:120000]
+      if (txt_data or pdf_data)
+      else "Materi promosi kesehatan, tarif, dan informasi poliklinik."
+  )
+
 
 context_data = load_context_data()
 
@@ -91,32 +99,40 @@ st.sidebar.title("Informasi Sistem")
 st.sidebar.info(f"Total Karakter Terbaca: {len(context_data)}")
 
 st.title("🩺 SAE RSUD Kota Bandung")
-st.caption("Suara, Aksara Edukasi — Asisten Edukasi & Informasi Kesehatan Masyarakat berbasis AI")
+st.caption(
+    "Suara, Aksara Edukasi — Asisten Edukasi & Informasi Kesehatan Masyarakat"
+    " berbasis AI"
+)
+
 
 def teks_ke_suara(teks):
-    teks_bersih = teks.replace("*", "").replace("#", "").replace("-", " ")
-    teks_audio = teks_bersih[:300]
-    tts = gTTS(text=teks_audio, lang="id")
-    fp = io.BytesIO()
-    tts.write_to_fp(fp)
-    fp.seek(0)
-    return fp
+  teks_bersih = teks.replace("*", "").replace("#", "").replace("-", " ")
+  teks_audio = teks_bersih[:300]
+  tts = gTTS(text=teks_audio, lang="id")
+  fp = io.BytesIO()
+  tts.write_to_fp(fp)
+  fp.seek(0)
+  return fp
+
 
 if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {
-            "role": "assistant",
-            "content": "Halo! Sampurasun! Saya SAE (Suara, Aksara Edukasi), asisten virtual resmi Promosi Kesehatan RSUD Kota Bandung. Ada yang ingin Anda tanyakan seputar materi kesehatan atau informasi poliklinik?",
-            "audio": None
-        }
-    ]
+  st.session_state.messages = [{
+      "role": "assistant",
+      "content": (
+          "Halo! Sampurasun! Saya SAE (Suara, Aksara Edukasi), asisten virtual"
+          " resmi Promosi Kesehatan RSUD Kota Bandung. Ada yang ingin Anda"
+          " tanyakan seputar materi kesehatan, jadwal poliklinik, atau tarif"
+          " pelayanan?"
+      ),
+      "audio": None,
+  }]
 
 # Tampilkan riwayat percakapan
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-        if msg.get("audio"):
-            st.audio(msg["audio"], format="audio/mp3")
+  with st.chat_message(msg["role"]):
+    st.markdown(msg["content"])
+    if msg.get("audio"):
+      st.audio(msg["audio"], format="audio/mp3")
 
 # Tombol Suara Web Speech API
 voice_component = """
@@ -189,11 +205,13 @@ components.html(voice_component, height=55)
 prompt = st.chat_input("Atau ketik pertanyaan kesehatan/poliklinik di sini...")
 
 if prompt:
-    st.session_state.messages.append({"role": "user", "content": prompt, "audio": None})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+  st.session_state.messages.append(
+      {"role": "user", "content": prompt, "audio": None}
+  )
+  with st.chat_message("user"):
+    st.markdown(prompt)
 
-    system_instruction = f"""
+  system_instruction = f"""
 Anda adalah 'SAE' (Suara, Aksara Edukasi), asisten AI resmi RSUD Kota Bandung.
 
 Berikut DATABASE RESMI JADWAL, TARIF, & MATERI KESEHATAN RSUD KOTA BANDUNG:
@@ -207,37 +225,45 @@ ATURAN MENJAWAB:
 3. Hindari pengantar yang terlalu panjang agar cepat dibaca pengguna dan diubah ke audio.
 """
 
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
-        
-        # Respon streaming langsung agar teks segera muncul kata per kata
+  with st.chat_message("assistant"):
+    message_placeholder = st.empty()
+    full_response = ""
+
+    # Streaming teks bertahap menggunakan gemini-3.8-flash
+    try:
+      response_stream = client.models.generate_content_stream(
+          model="gemini-3.8-flash",
+          contents=f"{system_instruction}\n\nPertanyaan: {prompt}",
+      )
+      for chunk in response_stream:
+        if chunk.text:
+          full_response += chunk.text
+          message_placeholder.markdown(full_response + "▌")
+      message_placeholder.markdown(full_response)
+    except Exception as e:
+      full_response = (
+          "Mohon maaf, saat ini sistem sedang memproses antrean. Silakan coba"
+          " kembali."
+      )
+      message_placeholder.markdown(full_response)
+      st.error(f"Keterangan error: {e}")
+
+    # Pembuatan audio setelah teks selesai ditampilkan
+    if (
+        full_response
+        and full_response
+        != "Mohon maaf, saat ini sistem sedang memproses antrean. Silakan coba"
+        " kembali."
+    ):
+      with st.spinner("Memproses audio jawaban..."):
         try:
-            response_stream = client.models.generate_content_stream(
-                model="gemini-3.8-flash",
-                contents=f"{system_instruction}\n\nPertanyaan: {prompt}"
-            )
-            for chunk in response_stream:
-                if chunk.text:
-                    full_response += chunk.text
-                    message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
-        except Exception as e:
-            full_response = "Mohon maaf, saat ini sistem sedang memproses antrean. Silakan coba kembali."
-            message_placeholder.markdown(full_response)
-            st.error(f"Keterangan error: {e}")
+          audio_stream = teks_ke_suara(full_response)
+          st.audio(audio_stream, format="audio/mp3", autoplay=True)
+        except Exception:
+          audio_stream = None
 
-        # Pembuatan audio setelah teks selesai ditampilkan
-        if full_response and full_response != "Mohon maaf, saat ini sistem sedang memproses antrean. Silakan coba kembali.":
-            with st.spinner("Memproses audio jawaban..."):
-                try:
-                    audio_stream = teks_ke_suara(full_response)
-                    st.audio(audio_stream, format="audio/mp3", autoplay=True)
-                except Exception:
-                    audio_stream = None
-
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": full_response,
-                "audio": audio_stream
-            })
+      st.session_state.messages.append({
+          "role": "assistant",
+          "content": full_response,
+          "audio": audio_stream,
+      })
